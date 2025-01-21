@@ -17,14 +17,14 @@
     <!-- Button for leaving the room -->
     <button onclick="leaveRoom()">Leave Room</button>
 
-    <div id="chat" class="chat-container"></div>
-    <label for="message"></label><input type="text" id="message" placeholder="Type your message..." onkeydown="function checkMessage() {
+    <label for="message"></label><input type="text" id="message" placeholder="Type your message (enter to send)..." onkeydown="function checkMessage() {
         if (event.key === 'Enter') {
             sendMessage();
         }
     }
     checkMessage()" class="chat-input">
-    <button onclick="sendMessage()" class="chat-input">Send</button>
+    <div id="chat" class="chat-container"></div>
+
 
 <script>
     let id = Math.random().toString(36).substring(7);

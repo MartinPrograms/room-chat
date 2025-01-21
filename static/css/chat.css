@@ -22,6 +22,8 @@ body {
 
     /* load the roboto-mono font from ../fonts/Roboto.ttf */
     font-family: 'Roboto Mono', monospace;
+
+
 }
 
 h1, h2, h3 {
@@ -30,12 +32,14 @@ h1, h2, h3 {
 }
 
 .chat-container {
-    border: 1px solid var(--secondary-color);
+    border: 1px solid var(--input-border-color);
     border-radius: 5px;
     margin-top: 20px;
     overflow: scroll;
     overflow-x: hidden;
-    height: 65vh;
+
+    /* Set the height to the remaining space */
+    height: calc(100vh - 500px);
 }
 
 /* Style for inputs */

@@ -4,6 +4,8 @@ import keygen
 from flask import Flask, render_template, request
 from flask_socketio import SocketIO, send, emit
 
+import threading
+
 app = Flask(__name__)
 app.config["SECRET_KEY"] = os.getenv("SECRET")
 socketio = SocketIO(app)
@@ -95,6 +97,36 @@ def handle_create_room(data):
     emit('room-created', room_id, broadcast=False)  # Emit back to the creator
     print(f"Room {room_id} created with max size {max_users} and session ID {request.sid}")
 
+connections_to_remove = []
+
+@socketio.on('disconnect')
+def handle_disconnect():
+    print(f"User {request.sid} disconnected")
+    for room_id in rooms:
+        for connection in rooms[room_id]['connections']:
+            if connection['sid'] == request.sid:
+                connections_to_remove.append({'room_id': room_id, 'sid': request.sid})
+                break
+
+
+def clear_rooms():
+    global connections_to_remove
+    while True:
+        for connection in connections_to_remove:
+            for room in rooms:
+                if room == connection['room_id']:
+                    rooms[room]['connections'] = [c for c in rooms[room]['connections'] if c['sid'] != connection['sid']]
+                    print(f"Removed user {connection['sid']} from room {room}")
+
+        for room in rooms.copy():
+            if len(rooms[room]['connections']) == 0:
+                print(f"Room {room} is empty, deleting")
+                del rooms[room]
+
+        connections_to_remove = []
+        threading.Event().wait(5)
+
+threading.Thread(target=clear_rooms).start()
 
 if __name__ == '__main__':
     app.run()
