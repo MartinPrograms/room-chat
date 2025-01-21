@@ -1,31 +1,77 @@
-﻿
-/* Dark red + gray color scheme */
-:root{
-    --primary-color:#8B0000;
-    --secondary-color:#ccc;
-    --tertiary-color:#fff;
-    --quarter-color:#444;
+﻿:root {
+    --primary-color: #d50101;
+    --secondary-color: #ccc;
+    --tertiary-color: #333;
+    --quarter-color: #ccc;
+    --input-bg-color: #222; /* Dark input background */
+    --input-text-color: #fff; /* White input text */
+    --input-border-color: #555; /* Slightly lighter border for contrast */
+    --button-bg-color: #8B0000; /* Button background color */
+    --button-hover-bg-color: #a30000; /* Hover color for buttons */
+    --button-text-color: #fff; /* White button text */
 }
 
-body{
-    margin:40px auto;
-    max-width:650px;
-    line-height:1.6;
-    font-size:18px;
-    padding:0 10px;
-    color:var(--quarter-color);
+body {
+    margin: 40px auto;
+    max-width: 650px;
+    line-height: 1.6;
+    font-size: 18px;
+    padding: 0 10px;
+    color: var(--quarter-color);
+    background-color: var(--tertiary-color);
+
+    /* load the roboto-mono font from ../fonts/Roboto.ttf */
+    font-family: 'Roboto Mono', monospace;
 }
 
-h1,h2,h3{
-    line-height:1.2;
-    color:var(--primary-color);
+h1, h2, h3 {
+    line-height: 1.2;
+    color: var(--primary-color);
 }
 
-.chat-container{
-    border:1px solid #ccc;
-    border-radius:5px;
-    margin-top:20px;
-    overflow:scroll;
-    overflow-x:hidden;
+.chat-container {
+    border: 1px solid var(--secondary-color);
+    border-radius: 5px;
+    margin-top: 20px;
+    overflow: scroll;
+    overflow-x: hidden;
     height: 65vh;
+}
+
+/* Style for inputs */
+.chat-input {
+    width: calc(100% - 20px); /* Full width with padding adjustment */
+    padding: 10px;
+    margin: 10px 0;
+    font-size: 16px;
+    color: var(--input-text-color);
+    background-color: var(--input-bg-color);
+    border: 1px solid var(--input-border-color);
+    border-radius: 5px;
+    outline: none;
+    box-sizing: border-box;
+}
+
+/* Focus effect for inputs */
+.chat-input:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 5px var(--primary-color);
+}
+
+/* Style for buttons */
+button {
+    background-color: var(--button-bg-color);
+    color: var(--button-text-color);
+    border: none;
+    padding: 10px 15px;
+    margin: 10px 5px 10px 0;
+    font-size: 16px;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+/* Hover effect for buttons */
+button:hover {
+    background-color: var(--button-hover-bg-color);
 }

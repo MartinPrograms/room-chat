@@ -5,12 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Chat Room</title>
     <script src="../static/js/socket.io.js"></script>
-    <script src="../static/js/hybrid-crypto.min.js"></script>
+    <script src="../static/js/crypto.js"></script>
     <!--- Import the styles --->
     <link rel="stylesheet" href="../static/css/chat.css">
 </head>
 <body>
-    <h1 id="title">Room </h1>
+    <h1>Chimera Rooms</h1>
+    <h3 id="title">Room </h3>
 
     <label for="name"></label><input type="text" id="name" placeholder="Name..." class="chat-input">
     <!-- Button for leaving the room -->
@@ -25,106 +26,151 @@
     checkMessage()" class="chat-input">
     <button onclick="sendMessage()" class="chat-input">Send</button>
 
-    <script>
-        let id = Math.random().toString(36).substring(7);
-        let roomId = window.location.pathname.split('/').pop();
-        const socket = io();
-        const chat = document.getElementById('chat');
-        const messageInput = document.getElementById('message');
+<script>
+    let id = Math.random().toString(36).substring(7);
+    let roomId = window.location.pathname.split('/').pop();
+    const socket = io();
+    const chat = document.getElementById('chat');
+    const messageInput = document.getElementById('message');
+    let cryptoManager = new GroupChatCrypto(); // Instance of GroupChatCrypto
 
-        let _publicKey = null;
-        let _privateKey = null;
-        let _knownKeys = []; // List of public keys, that are known to the user. These are of all other users in the chat room.
+    // Store the user's name
 
-        // On load show the room id in the title
-        document.getElementById('title').innerText = `Room ${roomId}`;
+    async function loadkeys() {
+        console.log('Initializing crypto and generating keys');
 
-        function generateKeys() {
-            console.log('Generating keys');
+        // Generate RSA key pair for the user
+        await cryptoManager.generateRSAKeyPair();
 
-            // We generate RSA keys for the user
-            // These keys will be used to encrypt the AES key
-            const { publicKey, privateKey } = crypto.generateKeyPairSync('rsa', {
-                modulusLength: 2048, // The length of the key in bits
-                publicKeyEncoding: {
-                    type: 'spki',      // Recommended public key format
-                    format: 'pem'
-                },
-                privateKeyEncoding: {
-                    type: 'pkcs8',     // Recommended private key format
-                    format: 'pem'
-                }
+        // Export the public key and share it with the server
+        const publicKey = await cryptoManager.exportPublicKey();
+        console.log('Public key:', publicKey);
+        socket.emit('join-room-chat', { roomId: roomId, publicKey: publicKey });
+
+        console.log('Public key shared with server');
+
+        // Set the title to "Room: [room id]"
+        document.getElementById('title').innerText = `Room: ${roomId}`;
+    }
+
+    document.onload = loadkeys();
+
+    // Handle receiving a message
+    socket.on('message', async (msg) => {
+        console.log('Message received', msg);
+
+        const { encryptedMessage, iv } = msg;
+
+        // Decrypt the message with the AES key
+        let decryptedMessage = '{message: "Error decrypting message"}';
+        if (cryptoManager.aesKey) {
+            decryptedMessage = await cryptoManager.decryptMessage(encryptedMessage, iv);
+        }
+        else {
+            console.log('AES key not established yet. Please wait for key exchange.');
+            return;
+        }
+
+        const newMessage = document.createElement('div');
+
+        // Decrypted message is currently a stringified JSON object
+        const message = JSON.parse(decryptedMessage);
+
+        // Format is as follows (raw text): [X/- (depending if its the sender or not)] [Name - Date]: [Message]
+        let isSender = message.sender === id;
+        let text = `[${isSender ? ' X ' : ' - '}] [${message.name} - ${new Date(message.date).toLocaleTimeString()}]: ${message.message}`;
+        newMessage.innerText = text;
+
+        chat.prepend(newMessage);
+    });
+
+    // Handle a user joining the room
+    socket.on('room-joined-chat', async ({ roomId, publicKey, shouldGenAES }) => {
+        console.log('User joined room:', roomId);
+        console.log('User public key:', publicKey);
+
+        // If the user should generate an AES key
+        if (shouldGenAES) {
+            // Generate an AES key
+            await cryptoManager.generateAESKey();
+            console.log('AES key generated ' + cryptoManager.aesKey);
+        }else{
+            // We need to get the AES key from the server, request it
+            socket.emit('request-aes', { roomId: roomId, publicKey: publicKey });
+            console.log('Requesting AES key from server');
+        }
+
+        // Add the new user's public key to the known keys
+        await cryptoManager.importPublicKey(publicKey, `user-${Date.now()}`);
+    });
+
+    // Handle another user joining the room
+    socket.on('room-joined-other', async ({ publicKey, sid }) => {
+        console.log('Another user joined. Public key:', publicKey);
+
+        // Add their public key to the known keys
+        await cryptoManager.importPublicKey(publicKey, sid);
+    });
+
+    // Sending a message
+    async function sendMessage() {
+        const message = messageInput.value.trim();
+
+        let userName = document.getElementById('name')?.value || 'Anonymous';
+        if (message) {
+            const payload = {
+                name: userName,
+                message: message,
+                date: new Date().toISOString(),
+                sender: id,
+            };
+
+            if (!cryptoManager.aesKey) {
+                alert('AES key not established yet. Please wait for key exchange.');
+                return;
+            }
+
+            // Encrypt the message with the AES key
+            const { ciphertext, iv } = await cryptoManager.encryptMessage(JSON.stringify(payload));
+
+            // Send the encrypted message to the server
+            socket.emit('message', {
+                roomId: roomId,
+                encryptedMessage: ciphertext,
+                iv: iv,
             });
 
-
+            // Clear the input field
+            messageInput.value = '';
         }
+    }
 
-        function loadkeys(event) {
-            console.log('onload');
-            generateKeys();
-            _knownKeys.push(_publicKey);
-            socket.emit('join-room-chat', {roomId: roomId, publicKey: _publicKey});
-            console.log('Public key', _publicKey);
-        }
+    // Leave the room
+    function leaveRoom() {
+        window.location.href = "/";
+    }
 
-        document.onload = loadkeys();
+    // Optional: handle key exchange for AES (if group key sharing is enabled)
+    socket.on('request-key', async (json) => {
+        // The sender ID is the session id of the user who requested the key
+        const { publicKey, sid: senderId } = json;
+        console.log('Received key request from:', senderId);
 
-        socket.on('message', msg => {
-            console.log('Message received', msg);
-            const newMessage = document.createElement('div');
-            let encMessage = msg.message;
+        await cryptoManager.importPublicKey(publicKey, senderId);
+        const aesKey = await cryptoManager.encryptAESKeyForParticipant(senderId);
+        socket.emit('return-aes', {roomId: roomId, senderId: senderId, aesKey: aesKey });
 
+        console.log('AES key sent to:', senderId);
+    });
 
-            //Add the message to the chat as text "[-] [Name - Date]: Message" where - is x if the message is from the current user
-            newMessage.innerText = `[${messageId === id ? 'x' : '-'}] [${name} - ${date}]: ${message}`;
+    socket.on('return-key', async ({ aesKey }) => {
+        // The AES key is received from the server
+        console.log('Received encrypted AES key:', aesKey);
 
-            //Prepend the new message to the chat
-            chat.prepend(newMessage);
-        });
-
-
-        socket.on('room-joined-chat', roomJoinedChat);
-
-        function roomJoinedChat(roomId, publicKey) {
-            console.log('Joined room', roomId);
-            console.log('Public key', publicKey);
-            _knownKeys.push(publicKey);
-        }
-
-        socket.on('room-joined-other', roomJoinedOther); // called when someone else joins the room
-        function roomJoinedOther(publicKey) {
-            console.log('Public key', publicKey);
-            _knownKeys.push(publicKey);
-        }
-
-        function sendMessage() {
-            const message = messageInput.value;
-            if (message.trim()) {
-                let name = document.getElementById('name').value;
-                if (!name) {
-                    name = 'Anonymous';
-                }
-                let payload = {
-                    name: name,
-                    message: message,
-                    date: new Date().toISOString(),
-                    id: id
-                };
-
-                // Encrypt the message with the public key of all other users in the chat room
-                let jsonPayload = JSON.stringify(payload);
-
-
-                socket.emit('message', {roomId: roomId, message: encryptedPayload});
-                messageInput.value = '';
-            }
-        }
-
-        function leaveRoom() {
-            window.location.href = "/";
-        }
-
-    </script>
+        // Import the AES key
+        await cryptoManager.decryptAESKey(aesKey);
+    });
+</script>
 
 </body>
 </html>

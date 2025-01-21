@@ -16,6 +16,9 @@ def root():
 @app.route('/room/<room_id>')
 def room_page(room_id):
     if room_id in rooms:
+        # check if the room is full
+        if len(rooms[room_id]['connections']) >= rooms[room_id]['size']:
+            return "Room is full", 404
         return render_template('chat.html', room_id=room_id)  # Pass room ID to the chat page
     else:
         return "Room not found", 404
@@ -27,7 +30,8 @@ def handle_message(msg):
     room_id = msg.get('roomId')
     if room_id in rooms:
         for connection in rooms[room_id]['connections']:
-            emit('message', msg, to=connection['sid'])
+            sid = connection.get('sid')
+            emit('message', msg, to=sid)
 
 @socketio.on('join-room-chat')
 def handle_join_room_chat(data):
@@ -37,11 +41,15 @@ def handle_join_room_chat(data):
         public_key = data.get('publicKey')
 
         for connection in rooms[room_id]['connections']:
-            emit('room-joined-other', public_key, to=connection['sid'])
+            emit('room-joined-other', {'publicKey' : public_key, 'sid': request.sid}, to=connection['sid'])
 
-        rooms[room_id]['connections'] += {'sid': request.sid, 'publicKey': public_key}
+        rooms[room_id]['connections'] += [{'sid': request.sid, 'publicKey': public_key}]
         print(f"User {request.sid} joined room {room_id}")
-        emit('room-joined-chat', room_id, broadcast=False)
+
+        # args: roomId, publicKey, shouldGenAES
+        # Shoudl gen aes should be true if the user is the first one to join the room
+        shouldGenAES = len(rooms[room_id]['connections']) == 1
+        emit('room-joined-chat', {'roomId': room_id, 'publicKey': public_key, 'shouldGenAES': shouldGenAES}, broadcast=False)
     else:
         emit('room-not-found-chat', room_id, broadcast=False)
 
@@ -53,6 +61,27 @@ def handle_join_room(data):
     else:
         emit('room-not-found', room_id, broadcast=False)
 
+@socketio.on('request-aes')
+def handle_request_aes(data):
+    room_id = data.get('roomId')
+    public_key = data.get('publicKey')
+    sid = request.sid # the owner who wants to get the AES key
+    if room_id in rooms:
+        # get the first user in the room, hes the owner
+        owner = rooms[room_id]['connections'][0]
+        print(f"User {sid} requested AES key for room {room_id} from {owner}")
+        ownersid = owner.get('sid')
+        emit('request-key', {'publicKey': public_key, 'sid': sid}, to=ownersid)
+
+
+@socketio.on('return-aes')
+def handle_return_aes(data):
+    room_id = data.get('roomId')
+    sid = data.get('senderId')
+    if room_id in rooms:
+        for connection in rooms[room_id]['connections']:
+            if connection['sid'] == sid:
+                emit('return-key', data, to=connection['sid'])
 
 @socketio.on('room-created')
 def handle_room_creation(room_id):
