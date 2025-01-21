@@ -1,0 +1,56 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Room</title>
+    <script src="../static/js/socket.io.js"></script>
+    <!--- Import the styles --->
+    <link rel="stylesheet" href="../static/css/chat.css"></head>
+<body>
+    <!-- this is the page where rooms are made, and joined. -->
+    <h1>Room</h1>
+
+    <!-- Input for a room id, and a join button -->
+    <label for="room-id"></label><input type="text" id="room-id" placeholder="Room ID..." class="chat-input">
+    <button onclick="joinRoom()">Join Room</button>
+
+    <label for="room-size"></label><input type="text" id="room-size" placeholder="Room Size..." class="chat-input"> <!-- Between 2 and 10 -->
+    <button onclick="createRoom()">Create Room</button>
+
+    <script>
+        const socket = io();
+
+        socket.on('room-joined', roomJoined);
+        socket.on('room-not-found', roomNotFound);
+        socket.on('room-created', roomCreated);
+
+        function joinRoom() {
+            let roomId = document.getElementById('room-id').value;
+            socket.emit('join-room', {roomId: roomId });
+        }
+
+        function roomJoined(roomId) {
+            window.location.href = `/room/${roomId}`;
+        }
+
+        function roomNotFound() {
+            alert('Room not found');
+        }
+
+        function createRoom() {
+            let roomSize = document.getElementById('room-size').value;
+            if (roomSize < 2 || roomSize > 10) {
+                alert('Room size must be between 2 and 10');
+                return;
+            }
+
+            socket.emit('create-room', {roomSize: roomSize});
+        }
+
+        function roomCreated(roomId) {
+            window.location.href = `/room/${roomId}`;
+        }
+    </script>
+</body>
+</html>

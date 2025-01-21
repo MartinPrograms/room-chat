@@ -5,13 +5,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Chat Room</title>
     <script src="../static/js/socket.io.js"></script>
+    <script src="../static/js/hybrid-crypto.min.js"></script>
     <!--- Import the styles --->
     <link rel="stylesheet" href="../static/css/chat.css">
 </head>
 <body>
-    <h1>Room</h1>
+    <h1 id="title">Room </h1>
 
     <label for="name"></label><input type="text" id="name" placeholder="Name..." class="chat-input">
+    <!-- Button for leaving the room -->
+    <button onclick="leaveRoom()">Leave Room</button>
 
     <div id="chat" class="chat-container"></div>
     <label for="message"></label><input type="text" id="message" placeholder="Type your message..." onkeydown="function checkMessage() {
@@ -23,17 +26,54 @@
     <button onclick="sendMessage()" class="chat-input">Send</button>
 
     <script>
-        let id = Math.random();
+        let id = Math.random().toString(36).substring(7);
+        let roomId = window.location.pathname.split('/').pop();
         const socket = io();
         const chat = document.getElementById('chat');
         const messageInput = document.getElementById('message');
 
+        let _publicKey = null;
+        let _privateKey = null;
+        let _knownKeys = []; // List of public keys, that are known to the user. These are of all other users in the chat room.
+
+        // On load show the room id in the title
+        document.getElementById('title').innerText = `Room ${roomId}`;
+
+        function generateKeys() {
+            console.log('Generating keys');
+
+            // We generate RSA keys for the user
+            // These keys will be used to encrypt the AES key
+            const { publicKey, privateKey } = crypto.generateKeyPairSync('rsa', {
+                modulusLength: 2048, // The length of the key in bits
+                publicKeyEncoding: {
+                    type: 'spki',      // Recommended public key format
+                    format: 'pem'
+                },
+                privateKeyEncoding: {
+                    type: 'pkcs8',     // Recommended private key format
+                    format: 'pem'
+                }
+            });
+
+
+        }
+
+        function loadkeys(event) {
+            console.log('onload');
+            generateKeys();
+            _knownKeys.push(_publicKey);
+            socket.emit('join-room-chat', {roomId: roomId, publicKey: _publicKey});
+            console.log('Public key', _publicKey);
+        }
+
+        document.onload = loadkeys();
+
         socket.on('message', msg => {
+            console.log('Message received', msg);
             const newMessage = document.createElement('div');
-            let message = msg.message;
-            let name = msg.name;
-            let date = new Date(msg.date).toLocaleString();
-            let messageId = msg.id;
+            let encMessage = msg.message;
+
 
             //Add the message to the chat as text "[-] [Name - Date]: Message" where - is x if the message is from the current user
             newMessage.innerText = `[${messageId === id ? 'x' : '-'}] [${name} - ${date}]: ${message}`;
@@ -41,6 +81,21 @@
             //Prepend the new message to the chat
             chat.prepend(newMessage);
         });
+
+
+        socket.on('room-joined-chat', roomJoinedChat);
+
+        function roomJoinedChat(roomId, publicKey) {
+            console.log('Joined room', roomId);
+            console.log('Public key', publicKey);
+            _knownKeys.push(publicKey);
+        }
+
+        socket.on('room-joined-other', roomJoinedOther); // called when someone else joins the room
+        function roomJoinedOther(publicKey) {
+            console.log('Public key', publicKey);
+            _knownKeys.push(publicKey);
+        }
 
         function sendMessage() {
             const message = messageInput.value;
@@ -55,9 +110,18 @@
                     date: new Date().toISOString(),
                     id: id
                 };
-                socket.emit('message', payload);
+
+                // Encrypt the message with the public key of all other users in the chat room
+                let jsonPayload = JSON.stringify(payload);
+
+
+                socket.emit('message', {roomId: roomId, message: encryptedPayload});
                 messageInput.value = '';
             }
+        }
+
+        function leaveRoom() {
+            window.location.href = "/";
         }
 
     </script>

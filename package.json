@@ -1,0 +1,17 @@
+{
+  "name": "room",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/MartinPrograms/room-chat.git"
+  },
+  "private": true,
+  "dependencies": {
+    "hybrid-crypto-js": "^0.2.4"
+  }
+}
