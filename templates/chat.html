@@ -29,7 +29,7 @@
 
 
 <script>
-    let id = Math.random().toString(36).substring(7);
+    let id = Math.random() * 6458.5;
     let roomId = window.location.pathname.split('/').pop();
     const socket = io();
     const chat = document.getElementById('chat');
@@ -113,7 +113,7 @@ let colors = [
     '#f3722c',
     '#f8961e',
 ];
-        let index = sender.charCodeAt(0) % colors.length;
+        let index = sender % colors.length;
         return colors[index];
     }
 
