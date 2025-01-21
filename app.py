@@ -98,6 +98,7 @@ def handle_create_room(data):
     print(f"Room {room_id} created with max size {max_users} and session ID {request.sid}")
 
 connections_to_remove = []
+rooms_to_remove = []
 
 @socketio.on('disconnect')
 def handle_disconnect():
@@ -107,7 +108,8 @@ def handle_disconnect():
             if connection['sid'] == request.sid:
                 connections_to_remove.append({'room_id': room_id, 'sid': request.sid})
                 break
-
+        if len(rooms[room_id]['connections']) == 0:
+            rooms_to_remove.append(room_id)
 
 def clear_rooms():
     global connections_to_remove
@@ -118,11 +120,11 @@ def clear_rooms():
                     rooms[room]['connections'] = [c for c in rooms[room]['connections'] if c['sid'] != connection['sid']]
                     print(f"Removed user {connection['sid']} from room {room}")
 
-        for room in rooms.copy():
-            if len(rooms[room]['connections']) == 0:
-                print(f"Room {room} is empty, deleting")
-                del rooms[room]
+        for room in rooms_to_remove:
+            del rooms[room]
+            print(f"Removed room {room}")
 
+        rooms_to_remove = []
         connections_to_remove = []
         threading.Event().wait(5)
 
