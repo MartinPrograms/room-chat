@@ -1,0 +1,66 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat Room</title>
+    <script src="../static/js/socket.io.js"></script>
+    <!--- Import the styles --->
+    <link rel="stylesheet" href="../static/css/chat.css">
+</head>
+<body>
+    <h1>Room</h1>
+
+    <label for="name"></label><input type="text" id="name" placeholder="Name..." class="chat-input">
+
+    <div id="chat" class="chat-container"></div>
+    <label for="message"></label><input type="text" id="message" placeholder="Type your message..." onkeydown="function checkMessage() {
+        if (event.key === 'Enter') {
+            sendMessage();
+        }
+    }
+    checkMessage()" class="chat-input">
+    <button onclick="sendMessage()" class="chat-input">Send</button>
+
+    <script>
+        let id = Math.random();
+        const socket = io();
+        const chat = document.getElementById('chat');
+        const messageInput = document.getElementById('message');
+
+        socket.on('message', msg => {
+            const newMessage = document.createElement('div');
+            let message = msg.message;
+            let name = msg.name;
+            let date = new Date(msg.date).toLocaleString();
+            let messageId = msg.id;
+
+            //Add the message to the chat as text "[-] [Name - Date]: Message" where - is x if the message is from the current user
+            newMessage.innerText = `[${messageId === id ? 'x' : '-'}] [${name} - ${date}]: ${message}`;
+
+            //Prepend the new message to the chat
+            chat.prepend(newMessage);
+        });
+
+        function sendMessage() {
+            const message = messageInput.value;
+            if (message.trim()) {
+                let name = document.getElementById('name').value;
+                if (!name) {
+                    name = 'Anonymous';
+                }
+                let payload = {
+                    name: name,
+                    message: message,
+                    date: new Date().toISOString(),
+                    id: id
+                };
+                socket.emit('message', payload);
+                messageInput.value = '';
+            }
+        }
+
+    </script>
+
+</body>
+</html>
