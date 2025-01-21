@@ -18,7 +18,7 @@
     <button onclick="leaveRoom()">Leave Room</button>
 
     <label for="message"></label><input type="text" id="message" placeholder="Type your message (enter to send)..." onkeydown="function checkMessage() {
-        if (event.key === 'Enter') {
+        if (event.key === 'Enter' || event.keyCode === 13) {
             sendMessage();
         }
     }
