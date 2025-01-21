@@ -29,7 +29,7 @@
 
 
 <script>
-    let id = Math.random() * 6458.5;
+    let id = Math.random() * 1000000;
     let roomId = window.location.pathname.split('/').pop();
     const socket = io();
     const chat = document.getElementById('chat');
@@ -83,9 +83,9 @@
 
         let usernameElement = document.createElement('span');
         usernameElement.innerText = message.name;
-        usernameElement.style.color = getColor(message.name, message.sender);
+        usernameElement.style.color = getColor(message.name);
         usernameElement.classList.add('username');
-        newMessage.appendChild(usernameElement);
+        newMessage.appendChild(usernameElement)
 
         let timestamp = document.createTextNode(
             ` - ${new Date(message.date).toLocaleTimeString()}: `
@@ -98,7 +98,7 @@
         chat.prepend(newMessage);
     });
 
-    function getColor(name, sender) {
+    function getColor(name) {
         // based on sender, return a color
 let colors = [
     '#f4a261',
@@ -113,8 +113,14 @@ let colors = [
     '#f3722c',
     '#f8961e',
 ];
-        let index = sender % colors.length;
-        return colors[index];
+
+let colorIndex = 0;
+// based on the total string character value as an ASCII code
+for (let i = 0; i < name.length; i++) {
+    colorIndex += name.charCodeAt(i);
+}
+
+return colors[colorIndex % colors.length];
     }
 
     // Handle a user joining the room
