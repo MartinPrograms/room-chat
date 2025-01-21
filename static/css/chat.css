@@ -79,3 +79,9 @@ button {
 button:hover {
     background-color: var(--button-hover-bg-color);
 }
+
+.username{
+    /* add a little white glow to the username */
+    text-shadow: 0 0 5px rgba(255, 255, 255, 0.2);
+    font-weight: bold;
+}

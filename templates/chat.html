@@ -74,17 +74,44 @@
         }
 
         const newMessage = document.createElement('div');
-
-        // Decrypted message is currently a stringified JSON object
         const message = JSON.parse(decryptedMessage);
-
-        // Format is as follows (raw text): [X/- (depending if its the sender or not)] [Name - Date]: [Message]
         let isSender = message.sender === id;
-        let text = `[${isSender ? ' X ' : ' - '}] [${message.name} - ${new Date(message.date).toLocaleTimeString()}]: ${message.message}`;
-        newMessage.innerText = text;
+
+        let senderMarker = document.createElement('span');
+        senderMarker.innerText = `[${isSender ? ' X ' : ' - '}] `;
+        newMessage.appendChild(senderMarker);
+
+        let usernameElement = document.createElement('span');
+        usernameElement.innerText = message.name;
+        usernameElement.style.color = getColor(message.name, message.sender);
+        usernameElement.classList.add('username');
+        newMessage.appendChild(usernameElement);
+
+        let timestamp = document.createTextNode(
+            ` - ${new Date(message.date).toLocaleTimeString()}: `
+        );
+        newMessage.appendChild(timestamp);
+
+        let messageText = document.createTextNode(message.message);
+        newMessage.appendChild(messageText);
 
         chat.prepend(newMessage);
     });
+
+    function getColor(name, sender) {
+        // based on sender, return a color
+let colors = [
+    '#f4a261',
+    '#e76f51',
+    '#2a9d8f',
+    '#264653',
+    '#a8dadc',
+    '#f4d35e',
+    '#81b29a',
+];
+        let index = sender.charCodeAt(0) % colors.length;
+        return colors[index];
+    }
 
     // Handle a user joining the room
     socket.on('room-joined-chat', async ({ roomId, publicKey, shouldGenAES }) => {
