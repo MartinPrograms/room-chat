@@ -108,11 +108,13 @@ def handle_disconnect():
             if connection['sid'] == request.sid:
                 connections_to_remove.append({'room_id': room_id, 'sid': request.sid})
                 break
-        if len(rooms[room_id]['connections']) == 0:
-            rooms_to_remove.append(room_id)
+
+            if len(rooms[room_id]['connections']) == 0:
+                rooms_to_remove.append(room_id)
 
 def clear_rooms():
     global connections_to_remove
+    global rooms_to_remove
     while True:
         for connection in connections_to_remove:
             for room in rooms:
